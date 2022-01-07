@@ -16,9 +16,14 @@ router.post('/question' ,usermid.authenticationToken,  questionController.create
 router.get('/question', questionController.getQuestions);
 router.get('/questions/:questionId', questionController.getQuestionById);
 router.put('/questions/:questionId' ,usermid.authenticationToken, questionController.updateQuestion);
+router.delete('/questions/:questionId' ,usermid.authenticationToken, questionController.deleteQuestion);
 
 
 //ans api
-router.post('/answer' ,usermid.authenticationToken,  answerController.createQuestion);
+router.post('/answer' ,usermid.authenticationToken,  answerController.createAnswer);
+router.get('/questions/:questionId/answer', answerController.getQuestionById);
+router.put('/answer/:answerId' ,usermid.authenticationToken, answerController.updateAnswer);
+router.delete('/answer/:answerId' ,usermid.authenticationToken, answerController.deleteAnswer);
+
 
 module.exports = router;

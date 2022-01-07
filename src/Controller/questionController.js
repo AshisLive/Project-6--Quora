@@ -13,6 +13,11 @@ const createQuestion = async function (req, res) {
             return
         }
 
+        if (!isValid(askedBy)) {
+            res.status(400).send({ status: false, message: 'askedBy is required' })
+            return
+        }
+
         if (!isValidObjectId(askedBy) && !isValidObjectId(tokenUserId)) {
             return res.status(404).send({ status: false, message: "userId or token is not valid" })
         };
@@ -74,15 +79,20 @@ const getQuestions = async function (req, res) {
 
         let questionsWithAnswers = []
         for (let i = 0; i < questions.length; i++) {
-            questionsWithAnswers.push(questions[i].toObject())
+            questionsWithAnswers.push(questions[i].toObject())  //this for loop for converting elements to object
         }
 
-        let answer = await answerModel.find()
+        for (let j = 0; j < questionsWithAnswers.length; j++) {
+            questionsWithAnswers[j]["answers"] = []               //this for loop for giving each object one more feild that is answer it will be empty if no answer is avilable for it.
+        }
+        let count = 0  //use for indexing of answer array feild.
+        let answer = await answerModel.find({ isDeleted: false })
         for (let quesn of questionsWithAnswers) {
-            for (let ans of answer) {
+            for (let ans of answer) {                                 //two for loop are used to iterate to both the array same time and find similar questionId.
                 if ((quesn._id).toString() == (ans.questionId).toString()) {
-                    quesn["answers"] = ans
+                    quesn.answers[count] = ans                                //if found same question Id in both array than paste that answers in the question document question's answer feild.
                 }
+                count++;   //to increase indexing so that every answer is pasted in answer array feild.
             }
         }
 
@@ -102,7 +112,7 @@ const getQuestionById = async function (req, res) {
         if (!checkquestionId) {
             return res.status(404).send({ status: false, message: "Id not found" })
         }
-        const getAnswers = await answerModel.find({ questionId })
+        const getAnswers = await answerModel.find({ questionId, isDeleted: false })
         checkquestionId = checkquestionId.toObject()
         checkquestionId["Answers"] = getAnswers
         return res.status(200).send({ status: true, message: "Question with answers", data: checkquestionId })
@@ -114,7 +124,8 @@ const getQuestionById = async function (req, res) {
 
 const updateQuestion = async function (req, res) {
     try {
-        const questionId = req.params.questionId
+        const questionId = req.params.questionId;
+        const tokenUserId = req.userId;
         if (!isValidRequestBody(req.body)) {
             return res.status(400).send({ status: false, message: "body is empty" })
         }
@@ -134,28 +145,59 @@ const updateQuestion = async function (req, res) {
         };
 
         let { tag, text } = req.body
-        const updateDetails = {};
+        //  const updateDetails = {};
         if (text) {
             if (!isValid(text)) {
                 res.status(400).send({ status: false, message: `Invalid text` })
             }
-            updateDetails["text"] = text;
         }
 
-        if (isValid(tag)) {
-            if()
-           
+        if (tag) {
+            if (!(isValid(tag))) {
+                res.status(400).send({ status: false, message: `Invalid tag` })
+            }
+            tag = tag.split(",")
         }
+        const updatedQuestion = await questionModel.findByIdAndUpdate({ _id: questionId }, { $addToSet: { tag: { $each: tag } }, description: text }, { new: true })
+        return res.status(200).send({ status: true, message: "Question updated", data: updatedQuestion })
 
-        await blogModel.findByIdAndUpdate({ _id: req.params.blogId }, { $addToSet: { subcategory: { $each: subcategory } } }, { new: true })
-        
     } catch (err) {
         return res.status(500).send({ status: false, msg: err.message })
     }
 }
 
+const deleteQuestion = async function (req, res) {
+    try {
+        const questionId = req.params.questionId;
+        const tokenUserId = req.userId;
+
+        if (!isValidObjectId(questionId) && !isValidObjectId(tokenUserId)) {
+            return res.status(404).send({ status: false, message: "userId or token is not valid" })
+        };
+
+        const user = await questionModel.findOne({ _id: questionId, isDeleted: false })  //check for user existance
+        if (!user) {
+            res.status(404).send({ status: false, message: `user not found` })
+            return
+        };
+
+        if (!(user.askedBy.toString() == tokenUserId.toString())) {  //authorisation
+            return res.status(401).send({ status: false, message: `Unauthorized access! Owner info doesn't match` });
+        };
+
+        const deletetedQuestion = await questionModel.findOneAndUpdate({ _id: questionId, isDeleted: false }, { isDeleted: true, deletedAt: new Date() }, { new: true })
+        if (deletetedQuestion) {
+            res.status(200).send({ status: true, msg: "This question has been succesfully deleted" })
+            return
+        }
+        res.status(404).send({ status: false, message: `question alredy deleted not found` })
+    } catch (error) {
+        res.status(500).send({ status: false, message: error.message })
+    }
+}
 
 module.exports.createQuestion = createQuestion
 module.exports.getQuestions = getQuestions
 module.exports.getQuestionById = getQuestionById
 module.exports.updateQuestion = updateQuestion
+module.exports.deleteQuestion = deleteQuestion
