@@ -46,6 +46,13 @@ const createAnswer = async function (req, res) {
             return res.status(404).send({ status: false, msg: "Id is not there in DB" })
         }
 
+        if (quesn.askedBy.toString() == answeredBy.toString()) {
+            res.status(400).send({ status: false, message: `You can't answer your own Question` })
+            return
+        }
+
+        await userModel.findOneAndUpdate({ _id: answeredBy }, { creditScore: user.creditScore + 200 }, { new: true })
+
         const answer = await answerModel.create(requestBody)
         return res.status(201).send({ status: true, msg: "successfully created", data: answer })
     } catch (err) {
@@ -64,7 +71,7 @@ const getQuestionById = async function (req, res) {
         if (!checkquestionId) {
             return res.status(404).send({ status: false, message: "Id not found" })
         }
-        const getAnswers = await answerModel.find({ questionId, isDeleted: false })
+        const getAnswers = await answerModel.find({ questionId, isDeleted: false }).sort({ "createdAt": -1 })
         checkquestionId = checkquestionId.toObject()
         checkquestionId["Answers"] = getAnswers
         return res.status(200).send({ status: true, message: "Question with answers", data: checkquestionId })

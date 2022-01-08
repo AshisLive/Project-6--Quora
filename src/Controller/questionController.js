@@ -32,6 +32,11 @@ const createQuestion = async function (req, res) {
             return res.status(401).send({ status: false, message: `Unauthorized access! Owner info doesn't match` });
         };
 
+        if(user.creditScore < 100){
+            res.status(400).send({ status: false, message: `cannot post any question due to insufficient creditScore ${user.creditScore}` })
+            return
+        }
+
         if (!isValid(description)) {
             res.status(400).send({ status: false, message: 'description is required' })
             return
@@ -41,6 +46,9 @@ const createQuestion = async function (req, res) {
             res.status(400).send({ status: false, message: 'tag is required' })
             return
         }
+
+        await userModel.findOneAndUpdate({ _id: askedBy },{creditScore:user.creditScore - 100},{new:true})
+
         requestBody.tag = tag.split(",")
         const quesn = await questionModel.create(requestBody)
         return res.status(201).send({ status: true, msg: "successfully created", data: quesn })
@@ -86,7 +94,7 @@ const getQuestions = async function (req, res) {
             questionsWithAnswers[j]["answers"] = []               //this for loop for giving each object one more feild that is answer it will be empty if no answer is avilable for it.
         }
         let count = 0  //use for indexing of answer array feild.
-        let answer = await answerModel.find({ isDeleted: false })
+        let answer = await answerModel.find({ isDeleted: false }).sort({ "createdAt": -1 })
         for (let quesn of questionsWithAnswers) {
             for (let ans of answer) {                                 //two for loop are used to iterate to both the array same time and find similar questionId.
                 if ((quesn._id).toString() == (ans.questionId).toString()) {
@@ -112,7 +120,7 @@ const getQuestionById = async function (req, res) {
         if (!checkquestionId) {
             return res.status(404).send({ status: false, message: "Id not found" })
         }
-        const getAnswers = await answerModel.find({ questionId, isDeleted: false })
+        const getAnswers = await answerModel.find({ questionId, isDeleted: false }).sort({ "createdAt": -1 })
         checkquestionId = checkquestionId.toObject()
         checkquestionId["Answers"] = getAnswers
         return res.status(200).send({ status: true, message: "Question with answers", data: checkquestionId })

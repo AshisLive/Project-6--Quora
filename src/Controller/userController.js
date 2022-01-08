@@ -66,6 +66,8 @@ const createUser = async function (req, res) {
             }
             userdetails.phone = phone
         }
+
+        userdetails.creditScore = 500;
         const userData = await userModel.create(userdetails)
         return res.status(201).send({ status: true, msg: "successfully created", data: userData })
     } catch (err) {
