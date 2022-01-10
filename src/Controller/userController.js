@@ -1,6 +1,6 @@
 const encrypt = require("../Encryption/Encrypt")
 const userModel = require("../Model/userModel")
-const { isValid, isValidRequestBody, isValidObjectId, validatePhone, validateEmail, validString } = require('../Validator/validate')
+const { isValidName, isValid, isValidRequestBody, isValidObjectId, validatePhone, validateEmail } = require('../Validator/validate')
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 
@@ -37,29 +37,29 @@ const createUser = async function (req, res) {
             return
         }
         if (!isValid(password)) {
-            res.status(400).send({ status: false, message: `${password} invalid passwoed` })
+            res.status(400).send({ status: false, message: `password invalid passwoed` })
             return
         }
         if (!(password.trim().length > 7 && password.trim().length < 16)) {
-            res.status(400).send({ status: false, message: `${password} invalid password it should be between 8 to 15` })
+            res.status(400).send({ status: false, message: `password invalid it should be between 8 to 15` })
             return
         }
 
         const hashPassword = await encrypt.hashPassword(password)
         password = hashPassword;
 
-        const userdetails= {fname, lname, email, password}
+        const userdetails = { fname, lname, email, password }
         if (phone) {
-           if (!isValid(phone)) {
+            if (!isValid(phone)) {
                 res.status(400).send({ status: false, message: `phone no. is required` })
                 return
             }
 
             if (!validatePhone(phone)) {
-                res.status(400).send({ status: false, message: `phone should be a valid number` });
+                res.status(400).send({ status: false, message: `${phone} should be a valid number` });
                 return;
             }
-            const isPhoneNumberAlreadyUsed = await userModel.findOne({ phone: phone });
+            const isPhoneNumberAlreadyUsed = await userModel.findOne({ phone });
             if (isPhoneNumberAlreadyUsed) {
                 res.status(400).send({ status: false, message: `${phone} mobile number is already registered`, });
                 return;
@@ -89,7 +89,7 @@ const loginUser = async function (req, res) {
             return
         }
         if (!validateEmail(email)) {
-            res.status(400).send({ status: false, message: `Email should be a valid email address` })
+            res.status(400).send({ status: false, message: `${email} should be a valid email address` })
             return
         }
         if (!isValid(password)) {
@@ -166,19 +166,34 @@ const updateUser = async function (req, res) {
             return res.status(401).send({ status: false, message: `Unauthorized access! Owner info doesn't match` });
         }
 
-        let { fname, lname, email, phone } = req.body
-
-        const filterQuery = {};
-        if (isValid(fname)) {
-            filterQuery['fname'] = fname.trim()
+        if (!isValidRequestBody(req.body)) {
+            res.status(400).send({ status: false, message: 'Invalid request parameters. Please provide Update details' })
+            return
         }
-        if (isValid(lname)) {
-            filterQuery['lname'] = lname.trim()
+        let { fname, lname, email, phone } = req.body
+        const filterQuery = {};
+        if (fname) {
+            if (isValidName(fname) && isValid(fname)) {    //isValidName function is used because form data send only string, so if i give other than string it takes as string so for validation i used thz function.
+                filterQuery['fname'] = fname.trim()
+            } else {
+                return res.status(404).send({ status: false, msg: `Invalid or empty fname` })
+            }
+        }
+        if (lname) {
+            if (isValidName(lname) && isValid(lname)) {
+                filterQuery['lname'] = lname.trim()
+            } else {
+                return res.status(404).send({ status: false, msg: `Invalid or empty fname` })
+            }
         }
         if (isValid(email)) {
+            if (!validateEmail(email)) {
+                res.status(400).send({ status: false, message: `Email should be a valid email address` })
+                return
+            }
             const checkEmail = await userModel.find({ email: email })
             if (!(checkEmail.length == 0)) {
-                return res.status(400).send({ status: false, message: `${email} is not unique` })
+                return res.status(400).send({ status: false, message: `${email} is not unique or Invalid` })
             }
             filterQuery['email'] = email.trim()
         }
@@ -192,6 +207,12 @@ const updateUser = async function (req, res) {
                 return res.status(400).send({ status: false, message: `${phone} is not unique` })
             }
             filterQuery['phone'] = phone.trim()
+        }
+        
+        //to check that filterQuery is empty or not if it is empty than nothing to change
+        if (!isValidRequestBody(filterQuery)) {
+            res.status(400).send({ status: false, message: 'nothing to Update' })
+            return
         }
 
         const userdetails = await userModel.findOneAndUpdate({ userId }, filterQuery, { new: true })

@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken")
 
 const authenticationToken = function (req, res, next) {
     try {
+       
         let token = req.header('Authorization', 'Bearer Token')
         token= token.split(' ')
         if (!token[0] && !token[1]) {

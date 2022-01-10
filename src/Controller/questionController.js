@@ -42,14 +42,16 @@ const createQuestion = async function (req, res) {
             return
         }
 
-        if (!isValid(tag)) {
-            res.status(400).send({ status: false, message: 'tag is required' })
-            return
+        if(tag){
+            if (!isValid(tag)) {
+                res.status(400).send({ status: false, message: 'tag is required' })
+                return
+            }  
+            requestBody.tag = tag.split(",")  
         }
 
         await userModel.findOneAndUpdate({ _id: askedBy },{creditScore:user.creditScore - 100},{new:true})
 
-        requestBody.tag = tag.split(",")
         const quesn = await questionModel.create(requestBody)
         return res.status(201).send({ status: true, msg: "successfully created", data: quesn })
     } catch (err) {
@@ -104,7 +106,7 @@ const getQuestions = async function (req, res) {
             }
         }
 
-        return res.status(200).send({ status: true, message: 'quesns list that was asked', data: questionsWithAnswers })
+        return res.status(200).send({ status: true, message: 'Questions that was asked', data: questionsWithAnswers })
     } catch (err) {
         res.status(500).send({ status: false, msg: err.message })
     }

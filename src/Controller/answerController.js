@@ -23,7 +23,7 @@ const createAnswer = async function (req, res) {
         }
 
         if (!isValidObjectId(answeredBy) && !isValidObjectId(tokenUserId) && !isValidObjectId(questionId)) {
-            return res.status(404).send({ status: false, message: "userId or token is not valid" })
+            return res.status(404).send({ status: false, message: "Id is not valid" })
         };
 
         const user = await userModel.findOne({ _id: answeredBy })  //check for user existance

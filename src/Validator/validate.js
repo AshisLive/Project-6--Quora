@@ -54,4 +54,14 @@ const validforStatus = function (value) {
 const isValidArray = function (arrayToCheck) {
     return Array.isArray(arrayToCheck)         //The Array.isArray(arrayToCheck) method returns true if an arrayToCheck is an array, otherwise false.
 }
-module.exports = { isValid, isValidRequestBody, isValidObjectId, validatePhone, validateEmail, validString, validforEnum, validforStatus, isValidArray }
+
+const isValidName = (flName) => {
+    let result = flName.match(/[A-z]/g)
+    if (result == null || result.length != flName.length) {
+        return false;
+    } else if (result.length == flName.length) {
+        return true;
+    }
+}
+
+module.exports = { isValid, isValidRequestBody, isValidObjectId, validatePhone, validateEmail, validString, validforEnum, validforStatus, isValidArray, isValidName }
