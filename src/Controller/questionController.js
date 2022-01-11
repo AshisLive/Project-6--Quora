@@ -32,7 +32,7 @@ const createQuestion = async function (req, res) {
             return res.status(401).send({ status: false, message: `Unauthorized access! Owner info doesn't match` });
         };
 
-        if(user.creditScore < 100){
+        if (user.creditScore < 100) {
             res.status(400).send({ status: false, message: `cannot post any question due to insufficient creditScore ${user.creditScore}` })
             return
         }
@@ -42,15 +42,15 @@ const createQuestion = async function (req, res) {
             return
         }
 
-        if(tag){
+        if (tag) {
             if (!isValid(tag)) {
                 res.status(400).send({ status: false, message: 'tag is required' })
                 return
-            }  
-            requestBody.tag = tag.split(",")  
+            }
+            requestBody.tag = tag.split(",")
         }
 
-        await userModel.findOneAndUpdate({ _id: askedBy },{creditScore:user.creditScore - 100},{new:true})
+        await userModel.findOneAndUpdate({ _id: askedBy }, { creditScore: user.creditScore - 100 }, { new: true })
 
         const quesn = await questionModel.create(requestBody)
         return res.status(201).send({ status: true, msg: "successfully created", data: quesn })
@@ -58,6 +58,7 @@ const createQuestion = async function (req, res) {
         res.status(500).send({ status: false, msg: err.message })
     }
 }
+
 
 
 const getQuestions = async function (req, res) {
@@ -68,7 +69,8 @@ const getQuestions = async function (req, res) {
 
         let query = {};
         if (isValid(tag)) {
-            query['tag'] = tag.trim();
+            tag = tag.trim().split(",")
+            query.tag = { $in: tag }         //include i.e $in is use for passing multiple value for search =>e.g- tag=NodeJS,Technology => ["NodeJS","Technology"]
         }
 
         if (sort) {
@@ -81,36 +83,30 @@ const getQuestions = async function (req, res) {
             }
         }
         query.isDeleted = false
-        let questions = await questionModel.find(query).sort({ "createdAt": sort })
-
+        let questions = await questionModel.find(query).sort({ "createdAt": sort }).lean()
+        //.lean() option tell mongoose to skip giving (or sending) mongoose document (mongoose object) and just give normal javascript object.
         if (Array.isArray(questions) && questions.length === 0) {
             return res.status(404).send({ status: false, message: 'No questions found' })
         }
-
-        let questionsWithAnswers = []
-        for (let i = 0; i < questions.length; i++) {
-            questionsWithAnswers.push(questions[i].toObject())  //this for loop for converting elements to object
-        }
-
-        for (let j = 0; j < questionsWithAnswers.length; j++) {
-            questionsWithAnswers[j]["answers"] = []               //this for loop for giving each object one more feild that is answer it will be empty if no answer is avilable for it.
-        }
-        let count = 0  //use for indexing of answer array feild.
+        //------------------------------------------------
+        let count = 0
         let answer = await answerModel.find({ isDeleted: false }).sort({ "createdAt": -1 })
-        for (let quesn of questionsWithAnswers) {
+        for (let quesn of questions) {
+            quesn["answers"] = [];                           //each object(qusetion) now will contain one more feild that is answer it will be empty if no answer is avilable for it.
             for (let ans of answer) {                                 //two for loop are used to iterate to both the array same time and find similar questionId.
                 if ((quesn._id).toString() == (ans.questionId).toString()) {
-                    quesn.answers[count] = ans                                //if found same question Id in both array than paste that answers in the question document question's answer feild.
+                    quesn.answers[count] = ans                               //if found same question Id in both array than paste that answers in the question document question's answer feild.
                 }
                 count++;   //to increase indexing so that every answer is pasted in answer array feild.
             }
         }
-
-        return res.status(200).send({ status: true, message: 'Questions that was asked', data: questionsWithAnswers })
+        return res.status(200).send({ status: true, message: 'Questions that was asked', data: questions })
     } catch (err) {
         res.status(500).send({ status: false, msg: err.message })
     }
 }
+
+
 
 const getQuestionById = async function (req, res) {
     try {
